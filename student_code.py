@@ -128,11 +128,45 @@ class KnowledgeBase(object):
         printv("Retracting {!r}", 0, verbose, [fact])
         ####################################################
         # Student code goes here
-        
+
+        if type(fact) == Fact:
+            first_list = [self._get_fact(fact)]
+            while len(first_list) > 0:
+                first_item = first_list[0]
+                first_list.remove(first_list[0])
+
+                if first_item in self.facts:
+                    self.facts.remove(first_item)
+                else:
+                    self.rules.remove(first_item)
+
+                #erase A from B and B from A.
+
+                for each_fact in first_item.supports_facts:
+                    for each_pair in each_fact.supported_by:
+                        if each_pair[0] == first_item or each_pair[1] == first_item:
+                            self._get_fact(each_fact).supported_by.remove(each_pair)
+                    first_list.append(self._get_fact(each_fact))
+
+                for each_rule in first_item.supports_rules:
+                    for each_pair in each_rule.supported_by:
+                        if each_pair[0] == first_item or each_pair[1] == first_item:
+                            self._get_rule(each_rule).supported_by.remove(each_pair)
+                    first_list.append(self._get_rule(each_rule))
+
+
+
 
 class InferenceEngine(object):
     def fc_infer(self, fact, rule, kb):
         """Forward-chaining to infer new facts and rules
+        - compare first statement of rule to first statement of fact (match)
+        - if match works, return something
+        - instantiate lhs then right hand then add new rule to database
+        - once satisfied, "delete"/ make new rule without it
+
+        - get rid of all the links
+        - use recursion to go down the links
 
         Args:
             fact (Fact) - A fact from the KnowledgeBase
@@ -146,3 +180,36 @@ class InferenceEngine(object):
             [fact.statement, rule.lhs, rule.rhs])
         ####################################################
         # Student code goes here
+
+
+        if match(fact.statement, rule.lhs[0], None) != False:
+            matched_vars = match(fact.statement, rule.lhs[0], None)
+            print(matched_vars)
+            new_rhs = instantiate(rule.rhs, matched_vars)
+            new_lhs=[]
+
+            for statement_loop in rule.lhs:
+                new_lhs.append(instantiate(statement_loop, matched_vars))
+
+            new_rule = Rule([new_lhs, new_rhs], [[fact, rule]])
+            new_rule.lhs.remove(new_rule.lhs[0])
+
+            if len(new_rule.lhs) == 0:
+                new_rule = Fact(new_rhs, [[fact, rule]])
+
+            if type(new_rule) == Fact:
+                rule.supports_facts.append(new_rule)
+                fact.supports_facts.append(new_rule)
+            else:
+                rule.supports_rules.append(new_rule)
+                fact.supports_rules.append(new_rule)
+
+            kb.kb_assert(new_rule)
+
+            #(on(A, B)) => covered(B)
+            #covered(B)
+
+
+
+
+
